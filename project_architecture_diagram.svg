@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 渐变定义 -->
+    <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="moduleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00f2fe;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="apiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fa709a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fee140;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="droneGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a8edea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fed6e3;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="debateGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffecd2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fcb69f;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 阴影滤镜 -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="3" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    
+    <!-- 发光效果 -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="1200" height="800" fill="#f8fafc"/>
+  
+  <!-- 标题区域 -->
+  <rect x="0" y="0" width="1200" height="80" fill="url(#headerGradient)" filter="url(#shadow)"/>
+  <text x="600" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white">
+    多智能体辩论系统 - 无人机集群评估平台
+  </text>
+  
+  <!-- 主要模块区域 -->
+  
+  <!-- 1. 数据输入模块 -->
+  <g transform="translate(50, 120)">
+    <rect x="0" y="0" width="200" height="120" rx="15" fill="url(#moduleGradient)" filter="url(#shadow)"/>
+    <text x="100" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">数据输入模块</text>
+    <text x="100" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">trajectory.pkl</text>
+    <text x="100" y="75" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">轨迹数据解析</text>
+    <text x="100" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">模拟数据生成</text>
+  </g>
+  
+  <!-- 2. 无人机评估引擎 -->
+  <g transform="translate(300, 120)">
+    <rect x="0" y="0" width="250" height="180" rx="15" fill="url(#droneGradient)" filter="url(#shadow)"/>
+    <text x="125" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#2d3748">无人机评估引擎</text>
+    
+    <!-- 评估维度 -->
+    <rect x="15" y="40" width="220" height="25" rx="5" fill="#ffffff" opacity="0.8"/>
+    <text x="125" y="57" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#2d3748">飞行控制评分 (35%)</text>
+    
+    <rect x="15" y="70" width="220" height="25" rx="5" fill="#ffffff" opacity="0.8"/>
+    <text x="125" y="87" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#2d3748">集群协同评分 (40%)</text>
+    
+    <rect x="15" y="100" width="220" height="25" rx="5" fill="#ffffff" opacity="0.8"/>
+    <text x="125" y="117" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#2d3748">安全评估评分 (25%)</text>
+    
+    <text x="125" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#2d3748">• 轨迹平滑度 • 编队稳定性</text>
+    <text x="125" y="165" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#2d3748">• 避碰能力 • 能源效率</text>
+  </g>
+  
+  <!-- 3. 多智能体辩论系统 -->
+  <g transform="translate(600, 120)">
+    <rect x="0" y="0" width="280" height="200" rx="15" fill="url(#debateGradient)" filter="url(#shadow)"/>
+    <text x="140" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#2d3748">多智能体辩论系统</text>
+    
+    <!-- 智能体圆圈 -->
+    <circle cx="70" cy="80" r="25" fill="#ff6b6b" filter="url(#glow)"/>
+    <text x="70" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">专家1</text>
+    
+    <circle cx="140" cy="60" r="25" fill="#4ecdc4" filter="url(#glow)"/>
+    <text x="140" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">专家2</text>
+    
+    <circle cx="210" cy="80" r="25" fill="#45b7d1" filter="url(#glow)"/>
+    <text x="210" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">专家3</text>
+    
+    <!-- 连接线 -->
+    <line x1="95" y1="80" x2="115" y2="70" stroke="#666" stroke-width="2" opacity="0.6"/>
+    <line x1="165" y1="70" x2="185" y2="80" stroke="#666" stroke-width="2" opacity="0.6"/>
+    <line x1="185" y1="95" x2="95" y2="95" stroke="#666" stroke-width="2" opacity="0.6"/>
+    
+    <text x="140" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#2d3748">多轮辩论交互</text>
+    <text x="140" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#2d3748">观点碰撞与融合</text>
+    <text x="140" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#2d3748">共识形成机制</text>
+  </g>
+  
+  <!-- 4. API调用模块 -->
+  <g transform="translate(920, 120)">
+    <rect x="0" y="0" width="200" height="120" rx="15" fill="url(#apiGradient)" filter="url(#shadow)"/>
+    <text x="100" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">API调用模块</text>
+    <text x="100" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">智谱GLM-4.6</text>
+    <text x="100" y="75" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">实时API调用</text>
+    <text x="100" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">模拟辩论模式</text>
+  </g>
+  
+  <!-- 5. 结果输出与分析 -->
+  <g transform="translate(300, 360)">
+    <rect x="0" y="0" width="600" height="150" rx="15" fill="#e2e8f0" stroke="#cbd5e0" stroke-width="2" filter="url(#shadow)"/>
+    <text x="300" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#2d3748">结果输出与分析模块</text>
+    
+    <!-- 输出项目 -->
+    <g transform="translate(50, 50)">
+      <rect x="0" y="0" width="120" height="80" rx="8" fill="#48bb78" opacity="0.8"/>
+      <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">评分报告</text>
+      <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">详细评分</text>
+      <text x="60" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">性能等级</text>
+    </g>
+    
+    <g transform="translate(190, 50)">
+      <rect x="0" y="0" width="120" height="80" rx="8" fill="#ed8936" opacity="0.8"/>
+      <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">专家意见</text>
+      <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">多角度分析</text>
+      <text x="60" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">改进建议</text>
+    </g>
+    
+    <g transform="translate(330, 50)">
+      <rect x="0" y="0" width="120" height="80" rx="8" fill="#9f7aea" opacity="0.8"/>
+      <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">辩论记录</text>
+      <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">完整对话</text>
+      <text x="60" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">JSON格式</text>
+    </g>
+    
+    <g transform="translate(470, 50)">
+      <rect x="0" y="0" width="120" height="80" rx="8" fill="#38b2ac" opacity="0.8"/>
+      <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">可视化图表</text>
+      <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">性能雷达图</text>
+      <text x="60" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">趋势分析</text>
+    </g>
+  </g>
+  
+  <!-- 数据流箭头 -->
+  <!-- 从数据输入到评估引擎 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4a5568" />
+    </marker>
+  </defs>
+  
+  <path d="M 250 180 Q 275 180 300 180" stroke="#4a5568" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 550 210 Q 575 210 600 210" stroke="#4a5568" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 880 220 Q 900 220 920 220" stroke="#4a5568" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 600 320 Q 600 340 600 360" stroke="#4a5568" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- 系统特性标签 -->
+  <g transform="translate(50, 550)">
+    <rect x="0" y="0" width="1100" height="200" rx="15" fill="#f7fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="550" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#2d3748">系统核心特性</text>
+    
+    <!-- 特性列表 -->
+    <g transform="translate(100, 60)">
+      <circle cx="10" cy="10" r="5" fill="#48bb78"/>
+      <text x="25" y="15" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">🚁 无人机集群飞行轨迹智能评估</text>
+      
+      <circle cx="10" cy="35" r="5" fill="#ed8936"/>
+      <text x="25" y="40" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">🤖 多智能体协同辩论决策机制</text>
+      
+      <circle cx="10" cy="60" r="5" fill="#9f7aea"/>
+      <text x="25" y="65" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">📊 多维度评分体系 (飞行控制+集群协同+安全评估)</text>
+      
+      <circle cx="10" cy="85" r="5" fill="#38b2ac"/>
+      <text x="25" y="90" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">🔄 实时API调用与模拟辩论双模式支持</text>
+      
+      <circle cx="10" cy="110" r="5" fill="#4299e1"/>
+      <text x="25" y="115" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">📈 智能化性能分析与改进建议生成</text>
+    </g>
+    
+    <g transform="translate(600, 60)">
+      <circle cx="10" cy="10" r="5" fill="#f56565"/>
+      <text x="25" y="15" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">⚡ 高效轨迹数据解析 (支持嵌套结构)</text>
+      
+      <circle cx="10" cy="35" r="5" fill="#68d391"/>
+      <text x="25" y="40" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">🎯 专家角色模拟 (技术+社会+伦理视角)</text>
+      
+      <circle cx="10" cy="60" r="5" fill="#fbb6ce"/>
+      <text x="25" y="65" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">📋 完整评估报告输出 (JSON格式)</text>
+      
+      <circle cx="10" cy="85" r="5" fill="#a78bfa"/>
+      <text x="25" y="90" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">🔧 灵活配置的评分权重系统</text>
+      
+      <circle cx="10" cy="110" r="5" fill="#fcd34d"/>
+      <text x="25" y="115" font-family="Arial, sans-serif" font-size="14" fill="#2d3748">🌐 支持代理网络环境的API调用</text>
+    </g>
+  </g>
+  
+  <!-- 版权信息 -->
+  <text x="600" y="780" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#718096">
+    基于多智能体辩论的无人机集群评估系统 | Powered by 智谱GLM-4.6
+  </text>
+</svg>
