@@ -11,16 +11,24 @@ def structured_prompt_first_round(agent_info, flight_summary, weighted_scores, e
     """
     expert_score = expert_scoring.get('expert_score')
     expert_score_str = f"{expert_score:.2f}" if isinstance(expert_score, (int, float)) else "N/A"
+    # Safely format category scores when some categories are disabled/missing
+    total_score = weighted_scores.get('total_score', 0.0)
+    fc = weighted_scores.get('flight_control', {}).get('score')
+    swc = weighted_scores.get('swarm_coordination', {}).get('score')
+    sa = weighted_scores.get('safety_assessment', {}).get('score')
+    fc_str = f"{fc:.2f}" if isinstance(fc, (int, float)) else "N/A"
+    swc_str = f"{swc:.2f}" if isinstance(swc, (int, float)) else "N/A"
+    sa_str = f"{sa:.2f}" if isinstance(sa, (int, float)) else "N/A"
     base = f"""
 {agent_info['evaluation_prompt']}
 
 {flight_summary}
 
 Auto scores (reference):
-- Total: {weighted_scores['total_score']:.2f}
-- Flight Control: {weighted_scores['flight_control']['score']:.2f}
-- Swarm Coordination: {weighted_scores['swarm_coordination']['score']:.2f}
-- Safety Assessment: {weighted_scores['safety_assessment']['score']:.2f}
+- Total: {total_score:.2f}
+- Flight Control: {fc_str}
+- Swarm Coordination: {swc_str}
+- Safety Assessment: {sa_str}
 
 Your expert score: {expert_score_str}
 Focused metrics: {expert_scoring['focused_metrics']}
@@ -32,7 +40,9 @@ Question: {question}
     base += (
         "\nPlease answer using the following STRICT structured format (ASCII only):\n"
         "[CLAIM] One-sentence core judgement about this mission.\n"
-        "[EVIDENCE] 3-5 bullet points referencing metrics above and concrete numbers.\n"
+        "[EVIDENCE] 3-5 bullet points; EACH must explain WHY the result occurs,\n"
+        "           and cite concrete evidence from DSL or data: SEG[i], EVENT t=...,\n"
+        "           WAYPTS (x,y), SCORES fields, or swarm_metrics values. Include numbers.\n"
         "[COUNTER] Anticipate a counterargument and provide a minimal-change rebuttal.\n"
         "[SUMMARY] 3 key takeaways + one actionable recommendation.\n"
         "[CONFIDENCE] A number in [0.00, 1.00].\n"
@@ -65,7 +75,7 @@ def construct_structured_followup(last_round_responses, question, agent_id, weig
     format_text = (
         "\nPlease REPLY using STRICT structured format (ASCII only):\n"
         "[CLAIM] One-sentence core judgement.\n"
-        "[EVIDENCE] 3-5 metrics with numbers from data.\n"
+        "[EVIDENCE] 3-5 items; for EACH, explain WHY and cite DSL/data (SEG/EVENT/WAYPTS/SCORES).\n"
         f"[COUNTER] Directly challenge Expert {target_id+1}'s key point with boundary conditions.\n"
         "[SUMMARY] 3 conclusions + one action.\n"
         "[CONFIDENCE] 0.00~1.00.\n"

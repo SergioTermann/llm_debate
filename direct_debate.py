@@ -16,17 +16,18 @@ DEBATE_QUESTION = "如何评价无人机集群的飞行轨迹优化和协同作�
 # 评分标准配置
 SCORING_CRITERIA = {
     "flight_control": {
-        "name": "飞行控制评分",
-        "weight": 0.35,
+        "name": "轨迹评估评分",
+        "weight": 0.0,
+        "disabled": True,
         "metrics": {
-            "trajectory_smoothness": {"weight": 0.3, "name": "轨迹平滑度"},
-            "altitude_stability": {"weight": 0.25, "name": "高度稳定性"},
-            "speed_consistency": {"weight": 0.25, "name": "速度一致性"},
-            "energy_efficiency": {"weight": 0.2, "name": "能源效率"}
+            "heading_smoothness": {"weight": 0.35, "name": "航向平滑度"},
+            "path_efficiency": {"weight": 0.30, "name": "路径效率"},
+            "sharp_turn_ratio": {"weight": 0.20, "name": "急转比例(越低越好)"},
+            "altitude_variation": {"weight": 0.15, "name": "高度波动(越低越好)"}
         }
     },
     "swarm_coordination": {
-        "name": "集群协同评分",
+        "name": "决策与协同评分",
         "weight": 0.4,
         "metrics": {
             "formation_stability": {"weight": 0.3, "name": "编队稳定性"},
@@ -37,7 +38,7 @@ SCORING_CRITERIA = {
     },
     "safety_assessment": {
         "name": "安全评估评分",
-        "weight": 0.25,
+        "weight": 0.0,
         "metrics": {
             "collision_avoidance": {"weight": 0.4, "name": "避碰能力"},
             "emergency_response": {"weight": 0.3, "name": "应急响应"},
@@ -160,28 +161,31 @@ def calculate_weighted_scores(scores):
     total_score = 0.0
     
     for category, category_data in SCORING_CRITERIA.items():
+        # 跳过已禁用的类别（例如轨迹评估）
+        if category_data.get("disabled", False):
+            continue
         category_score = 0.0
         category_weighted_score = 0.0
-
-        # 协同评分在单机任务下不适用
+ 
+         # 协同评分在单机任务下不适用
         not_applicable = bool(scores.get(category, {}).get("not_applicable", False))
-        
+         
         if not not_applicable:
             for metric, metric_data in category_data["metrics"].items():
                 metric_score = scores[category][metric]
                 weighted_metric_score = metric_score * metric_data["weight"]
                 category_score += weighted_metric_score
-            
+             
             category_weighted_score = category_score * category_data["weight"]
             total_score += category_weighted_score
-
+ 
         weighted_scores[category] = {
             "score": category_score,
             "weighted_score": category_weighted_score,
             "details": scores[category],
             "not_applicable": not_applicable
         }
-    
+     
     weighted_scores["total_score"] = total_score
     return weighted_scores
 
@@ -698,14 +702,17 @@ def format_llm_dsl(summary, scores=None):
         lines.append(f"WAYPTS: {wp_str}")
     if scores:
         try:
-            fc = scores.get('flight_control', {})
-            lines.append(
-                "SCORES: "
-                f"smooth={fc.get('trajectory_smoothness',0)}, "
-                f"alt_stab={fc.get('altitude_stability',0)}, "
-                f"speed_cons={fc.get('speed_consistency',0)}, "
-                f"energy_eff={fc.get('energy_efficiency',0)}"
-            )
+            sc = scores.get('swarm_coordination', {})
+            if sc.get('not_applicable'):
+                lines.append("SCORES: COORD=N/A (单机任务)")
+            else:
+                lines.append(
+                    "SCORES: "
+                    f"formation_stab={sc.get('formation_stability',0)}, "
+                    f"comm_quality={sc.get('communication_quality',0)}, "
+                    f"coord_delay={sc.get('coordination_delay',0)}, "
+                    f"task_comp={sc.get('task_completion',0)}"
+                )
         except Exception:
             pass
     return "\n".join(lines)
@@ -725,40 +732,226 @@ def main():
     print("✅ 飞行数据已保存到 drone_flight_data.json")
     
     # 设置辩论参数
-    agents = 3  # 3个智能体
+    agents = 0  # 占位，稍后根据AGENTS重设
     rounds = 2  # 2轮辩论
     
     # 智能体角色设定 - 移动到main函数开始处
     global AGENTS
     AGENTS = {
-        "无人机飞行控制专家": {
-            "role": "无人机飞行控制专家",
-            "expertise": "飞行控制系统、轨迹规划、导航算法",
-            "scoring_focus": ["trajectory_smoothness", "altitude_stability", "speed_consistency", "energy_efficiency"],
-            "evaluation_prompt": "作为无人机飞行控制专家，请重点评估飞行轨迹的平滑度、高度稳定性、速度一致性和能源效率。"
-        },
-        "集群协同算法专家": {
-            "role": "集群协同算法专家", 
-            "expertise": "集群智能、协同控制、通信协议",
+
+        "群聚能力专家": {
+            "role": "群聚能力专家",
+            "expertise": "群体行为建模、队形保持、密度控制与邻域交互",
             "scoring_focus": ["formation_stability", "communication_quality", "coordination_delay", "task_completion"],
-            "evaluation_prompt": "作为集群协同算法专家，请重点评估编队稳定性、通信质量、协调延迟和任务完成度。"
+            "evaluation_prompt": "作为群聚能力专家，请评估群体聚合、队形保持与协同行为质量，结合编队稳定性、通信质量、协调延迟与任务完成度四项指标，引用具体证据并给出低成本的群聚策略改进建议；单机任务下协同相关项视为N/A。"
         },
-        "航空安全专家": {
-            "role": "航空安全专家",
-            "expertise": "飞行安全、风险评估、应急处理",
-            "scoring_focus": ["collision_avoidance", "emergency_response", "risk_management"],
-            "evaluation_prompt": "作为航空安全专家，请重点评估避碰能力、应急响应和风险管控能力。"
-        }
-    }
-    
-    # 保持向后兼容的角色描述
+         "集群协同与通信工程师": {
+             "role": "集群协同与通信工程师",
+             "expertise": "队形控制、任务分配、网络通信与链路质量",
+             "scoring_focus": ["formation_stability", "communication_quality", "coordination_delay", "task_completion"],
+             "evaluation_prompt": "作为集群协同与通信工程师，请重点评估编队稳定性、通信质量、协调延迟和任务完成度；若为单机任务请明确协同项为N/A；引用具体指标并提出轻量级协同策略调整。"
+         },
+         "任务完成度评估专家": {
+             "role": "任务完成度评估专家",
+             "expertise": "任务规划与执行、里程碑管理、资源与载荷调度",
+             "scoring_focus": ["task_completion", "coordination_delay", "communication_quality"],
+             "evaluation_prompt": "作为任务完成度评估专家，请结合任务完成率、协调延迟与通信质量，识别影响任务达成的瓶颈，并提出可执行的优化建议；单机任务下协同相关项视为N/A。"
+         }
+     }
+    # 根据新的专家集合重设数量
+    agents = len(AGENTS)
+     
+     # 保持向后兼容的角色描述
     agent_roles = [
-        "作为一名无人机飞行控制专家，从飞行轨迹优化角度",
-        "作为一名集群协同算法专家，从多机协作角度", 
-        "作为一名航空安全专家，从飞行安全和风险评估角度"
+        "作为群聚能力专家，从群体聚合与协同角度",
+        "作为集群协同与通信工程师，从协作与网络角度", 
+        "作为任务完成度评估专家，从任务执行与达成角度"
     ]
     
     # 初始化智能体回答
+    agents_responses = [[] for _ in range(agents)]
+    agents_structured = [[] for _ in range(agents)]
+    agent_weights = [1.0 / agents] * agents
+    weights_history = []
+    
+    print(f"\n🤖 智谱GLM-4.6 无人机集群评估系统")
+    print(f"辩论问题: {DEBATE_QUESTION}\n")
+        
+        # 显示飞行数据摘要
+    print("📊 飞行数据摘要:")
+    print(f"  - 任务ID: {flight_data['mission_id']}")
+    print(f"  - 任务类型: {flight_data['mission_type']}")
+    print(f"  - 无人机数量: {flight_data['drone_count']} 架")
+    print(f"  - 飞行时长: {flight_data['flight_duration']}")
+    print(f"  - 集群稳定性: {'N/A(单机)' if flight_data['drone_count'] <= 1 else str(flight_data['swarm_metrics']['formation_stability']) + '%'}")
+    print(f"  - 任务完成率: {'N/A(单机)' if flight_data['drone_count'] <= 1 else str(flight_data['swarm_metrics']['task_completion_rate']) + '%'}")
+    
+    print("\n参与评估的专家:")
+    for i, role in enumerate(agent_roles):
+        print(f"  专家 {i+1}: {role}")
+    print("\n" + "="*60)
+    
+    # 生成飞行数据摘要
+    swarm_stab_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['formation_stability']}%"
+    comm_rate_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['communication_success_rate']}%"
+    task_comp_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['task_completion_rate']}%"
+    avoid_events_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['collision_avoidance_events']} 次"
+    coord_delay_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['coordination_delay_avg']} ms"
+    flight_summary = f"""
+    基于以下无人机集群飞行数据进行分析：
+    - 任务类型：{flight_data['mission_type']}
+    - 无人机数量：{flight_data['drone_count']} 架
+    - 飞行时长：{flight_data['flight_duration']}
+    - 集群稳定性：{swarm_stab_str}
+    - 通信成功率：{comm_rate_str}
+    - 任务完成率：{task_comp_str}
+    - 避碰事件：{avoid_events_str}
+    - 平均协调延迟：{coord_delay_str}"""
+        
+        # 更新智能体循环以使用新的AGENTS字典
+    agent_names = list(AGENTS.keys())
+        
+        # 生成自动评分
+    print("正在计算飞行数据评分...")
+    scores = calculate_flight_scores(flight_data)
+    weighted_scores = calculate_weighted_scores(scores)
+    
+    # 为LLM生成紧凑轨迹证据DSL
+    traj_summary = summarize_trajectory_for_llm(flight_data)
+    evidence_text = format_llm_dsl(traj_summary, scores=scores)
+    print("🧪 已生成轨迹摘要DSL(已注入到提示): META/SEG/EVENT/WAYPTS/SCORES")
+    # 打印抽象结果：JSON与DSL
+    print("\n====== 轨迹摘要(JSON) ======")
+    print(json.dumps(traj_summary, ensure_ascii=False, indent=2))
+    print("\n====== 轨迹摘要(DSL) ======")
+    print(evidence_text)
+    print("="*60)
+    
+    # 生成专家评分
+    expert_scorings = []
+    for agent_name in agent_names:
+        expert_scoring = generate_expert_scoring(agent_name, flight_data, scores)
+        expert_scorings.append(expert_scoring)
+    
+    print(f"自动评分完成，总分: {weighted_scores['total_score']:.2f}")
+    
+    # 进行辩论
+    for round_idx in range(rounds):
+        print(f"\n🔥 第 {round_idx+1} 轮评估")
+        print("-" * 40)
+        
+        for agent_idx in range(agents):
+            agent_name = agent_names[agent_idx]
+            agent_info = AGENTS[agent_name]
+            
+            print(f"\n💭 {agent_name} 正在分析...")
+            
+            # 构建提示，包含飞行数据和评分
+            if round_idx == 0:
+                # 第一轮：基于飞行数据和自动评分进行分析
+                prompt = structured_prompt_first_round(
+                    agent_info,
+                    flight_summary,
+                    weighted_scores,
+                    expert_scorings[agent_idx],
+                    DEBATE_QUESTION,
+                    evidence_text=evidence_text,
+                )
+            else:
+                # 后续轮次，考虑其他专家的分析
+                last_round_responses = [agents_responses[i][round_idx-1] for i in range(agents)]
+                prompt = construct_structured_followup(
+                    last_round_responses,
+                    DEBATE_QUESTION,
+                    agent_idx,
+                    weighted_scores,
+                    expert_scorings[agent_idx],
+                    evidence_text=evidence_text,
+                )
+            
+            # 调用API获取回答
+            print("正在调用智谱GLM-4.6 API...")
+            response = call_glm_api(prompt, api_key, agent_info['role'])
+
+            agents_responses[agent_idx].append(response)
+            # 解析结构化输出并保存
+            try:
+                structured = parse_structured_response(response)
+            except Exception:
+                structured = {"summary": "", "confidence": 0.5, "raw": response}
+            agents_structured[agent_idx].append(structured)
+            
+            print(f"\n📢 {agent_name} 的评估:")
+            print(f"{response}")
+            print("-" * 40)
+            # 额外打印解析后的结构化要点与证据，便于核对原因与引用
+            try:
+                print("🔎 结构化要点:")
+                print(f"CLAIM: {structured.get('claim','')}")
+                ev = structured.get('evidence','')
+                if ev:
+                    print("EVIDENCE:")
+                    print(ev)
+            except Exception:
+                pass
+            time.sleep(2)  # 避免API调用过于频繁
+    
+        # 每轮结束后：更新权重与早停判据（位于轮次循环内）
+        try:
+            current_structs = [agents_structured[i][round_idx] for i in range(agents)]
+        except Exception:
+            current_structs = []
+        if current_structs:
+            agent_weights = update_agent_weights(agent_weights, current_structs, alpha=1.0, beta=1.0)
+            weights_history.append(agent_weights)
+        if round_idx > 0 and current_structs:
+            prev_text = " ".join([agents_structured[i][round_idx-1].get('summary','') for i in range(agents)])
+            curr_text = " ".join([s.get('summary','') for s in current_structs])
+            sim = summary_similarity(prev_text, curr_text)
+            if sim > 0.92:
+                print(f"⏹️ 早停: 第{round_idx+1}轮与上一轮相似度 {sim:.2f} 超过阈值 0.92")
+                break
+
+    # 生成综合评分报告
+    if "mission_info" not in flight_data:
+        flight_data["mission_info"] = {"duration_minutes": 45}
+    scoring_report = generate_scoring_report(flight_data, scores, weighted_scores, expert_scorings)
+    
+    # 保存评估结果
+    evaluation_result = {
+        "question": DEBATE_QUESTION,
+        "flight_data": flight_data,
+        "expert_roles": agent_names,
+        "expert_evaluations": agents_responses,
+        "structured_evaluations": agents_structured,
+        "debate_weights_history": weights_history,
+        "scoring_report": scoring_report,
+        "model": "glm-4.6",
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    with open("drone_swarm_evaluation_result.json", "w", encoding="utf-8") as f:
+        json.dump(evaluation_result, f, ensure_ascii=False, indent=2)
+    
+    print(f"\n✅ 无人机集群评估完成！")
+    print("📄 评估结果已保存到 drone_swarm_evaluation_result.json")
+    print("📄 飞行数据已保存到 drone_flight_data.json")
+    
+    # 显示评分报告摘要
+    print(f"\n📊 综合评分报告:")
+    print(f"  - 总体评分: {scoring_report['evaluation_summary']['total_score']} ({scoring_report['evaluation_summary']['grade']})")
+    for category, data in scoring_report['category_scores'].items():
+        print(f"  - {data['name']}: {data['score']} ({data['grade']})")
+    
+    # 显示统计信息
+    print(f"\n📊 评估统计:")
+    print(f"  - 使用模型: GLM-4.6")
+    print(f"  - 参与专家: {agents} 位")
+    print(f"  - 评估轮次: {rounds} 轮")
+    print(f"  - 总API调用次数: {agents * rounds} 次")
+    print(f"  - 无人机数量: {flight_data['drone_count']} 架")
+    print(f"  - 飞行时长: {flight_data['flight_duration']}")
+    print(f"  - 集群表现: 稳定性{flight_data['swarm_metrics']['formation_stability']}%, 完成率{flight_data['swarm_metrics']['task_completion_rate']}%")
     agents_responses = [[] for _ in range(agents)]
     agents_structured = [[] for _ in range(agents)]
     agent_weights = [1.0 / agents] * agents
@@ -788,15 +981,15 @@ def main():
     avoid_events_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['collision_avoidance_events']} 次"
     coord_delay_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['coordination_delay_avg']} ms"
     flight_summary = f"""
- 基于以下无人机集群飞行数据进行分析：
- - 任务类型：{flight_data['mission_type']}
- - 无人机数量：{flight_data['drone_count']} 架
- - 飞行时长：{flight_data['flight_duration']}
- - 集群稳定性：{swarm_stab_str}
- - 通信成功率：{comm_rate_str}
- - 任务完成率：{task_comp_str}
- - 避碰事件：{avoid_events_str}
- - 平均协调延迟：{coord_delay_str}"""
+    基于以下无人机集群飞行数据进行分析：
+    - 任务类型：{flight_data['mission_type']}
+    - 无人机数量：{flight_data['drone_count']} 架
+    - 飞行时长：{flight_data['flight_duration']}
+    - 集群稳定性：{swarm_stab_str}
+    - 通信成功率：{comm_rate_str}
+    - 任务完成率：{task_comp_str}
+    - 避碰事件：{avoid_events_str}
+    - 平均协调延迟：{coord_delay_str}"""
     
     # 更新智能体循环以使用新的AGENTS字典
     agent_names = list(AGENTS.keys())
@@ -874,6 +1067,16 @@ def main():
             print(f"\n📢 {agent_name} 的评估:")
             print(f"{response}")
             print("-" * 40)
+            # 额外打印解析后的结构化要点与证据，便于核对原因与引用
+            try:
+                print("🔎 结构化要点:")
+                print(f"CLAIM: {structured.get('claim','')}")
+                ev = structured.get('evidence','')
+                if ev:
+                    print("EVIDENCE:")
+                    print(ev)
+            except Exception:
+                pass
             time.sleep(2)  # 避免API调用过于频繁
     
         # 每轮结束后：更新权重与早停判据（位于轮次循环内）
@@ -933,5 +1136,6 @@ def main():
     print(f"  - 飞行时长: {flight_data['flight_duration']}")
     print(f"  - 集群表现: 稳定性{flight_data['swarm_metrics']['formation_stability']}%, 完成率{flight_data['swarm_metrics']['task_completion_rate']}%")
 
+
 if __name__ == "__main__":
-    main()
+        main()
