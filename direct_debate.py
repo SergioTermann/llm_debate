@@ -46,76 +46,13 @@ SCORING_CRITERIA = {
     }
 }
 
-# 生成模拟无人机飞行数据
-def generate_drone_flight_data():
-    """
-    生成模拟的无人机集群飞行数据
-    """
-    drone_data = {
-        "mission_id": "SWARM_001",
-        "mission_type": "协同巡逻任务",
-        "drone_count": 5,
-        "flight_duration": "45分钟",
-        "drones": []
-    }
-    
-    # 为每架无人机生成飞行数据
-    for i in range(5):
-        drone_id = f"UAV_{i+1:03d}"
-        
-        # 生成飞行轨迹点 (模拟GPS坐标)
-        trajectory = []
-        base_lat, base_lon = 39.9042, 116.4074  # 北京坐标作为基准
-        
-        for t in range(0, 2700, 60):  # 45分钟，每分钟一个点
-            # 添加一些随机变化模拟真实飞行轨迹
-            lat_offset = 0.01 * math.sin(t/300) + random.uniform(-0.002, 0.002)
-            lon_offset = 0.01 * math.cos(t/300) + random.uniform(-0.002, 0.002)
-            altitude = 100 + 20 * math.sin(t/600) + random.uniform(-5, 5)
-            
-            trajectory.append({
-                "timestamp": t,
-                "latitude": base_lat + lat_offset + i * 0.005,
-                "longitude": base_lon + lon_offset + i * 0.005,
-                "altitude": max(50, altitude),
-                "speed": random.uniform(8, 15),
-                "heading": (t/10 + i * 72) % 360
-            })
-        
-        # 生成性能指标
-        drone_info = {
-            "drone_id": drone_id,
-            "model": f"DJI_M{300 + i*100}",
-            "trajectory": trajectory,
-            "performance_metrics": {
-                "avg_speed": round(random.uniform(10, 14), 2),
-                "max_altitude": round(max([p["altitude"] for p in trajectory]), 1),
-                "total_distance": round(random.uniform(25, 35), 2),
-                "battery_consumption": round(random.uniform(75, 95), 1),
-                "communication_quality": round(random.uniform(85, 98), 1),
-                "formation_accuracy": round(random.uniform(88, 96), 1)
-            },
-            "anomalies": random.choice([
-                [],
-                ["轻微GPS信号干扰 (T+1200s)"],
-                ["短暂通信延迟 (T+800s)"],
-                ["风速影响轨迹偏移 (T+1500s)"]
-            ])
-        }
-        
-        drone_data["drones"].append(drone_info)
-    
-    # 添加集群协同指标
-    drone_data["swarm_metrics"] = {
-        "formation_stability": round(random.uniform(90, 97), 1),
-        "collision_avoidance_events": random.randint(0, 3),
-        "communication_success_rate": round(random.uniform(94, 99), 1),
-        "task_completion_rate": round(random.uniform(92, 100), 1),
-        "energy_efficiency": round(random.uniform(85, 93), 1),
-        "coordination_delay_avg": round(random.uniform(50, 150), 0)
-    }
-    
-    return drone_data
+# 辅助：方向字符串
+COMPASS_DIRS = [
+    ("N", 0), ("NNE", 22.5), ("NE", 45), ("ENE", 67.5),
+    ("E", 90), ("ESE", 112.5), ("SE", 135), ("SSE", 157.5),
+    ("S", 180), ("SSW", 202.5), ("SW", 225), ("WSW", 247.5),
+    ("W", 270), ("WNW", 292.5), ("NW", 315), ("NNW", 337.5)
+]
 
 
 # 自动评分算法
@@ -181,6 +118,14 @@ def calculate_flight_scores(flight_data):
     # 任务完成度评分
     task_completion = flight_data["swarm_metrics"]["task_completion_rate"]
     swarm_coordination_scores["task_completion"] = task_completion
+
+    # 单机任务：协同评分不适用，置零并标记
+    if int(flight_data.get("drone_count", 1)) <= 1:
+        swarm_coordination_scores["formation_stability"] = 0.0
+        swarm_coordination_scores["communication_quality"] = 0.0
+        swarm_coordination_scores["coordination_delay"] = 0.0
+        swarm_coordination_scores["task_completion"] = 0.0
+        swarm_coordination_scores["not_applicable"] = True
     
     scores["swarm_coordination"] = swarm_coordination_scores
     
@@ -206,33 +151,40 @@ def calculate_flight_scores(flight_data):
     
     return scores
 
+
 def calculate_weighted_scores(scores):
     """
     计算加权综合评分
     """
     weighted_scores = {}
-    total_score = 0
+    total_score = 0.0
     
     for category, category_data in SCORING_CRITERIA.items():
-        category_score = 0
-        category_weighted_score = 0
+        category_score = 0.0
+        category_weighted_score = 0.0
+
+        # 协同评分在单机任务下不适用
+        not_applicable = bool(scores.get(category, {}).get("not_applicable", False))
         
-        for metric, metric_data in category_data["metrics"].items():
-            metric_score = scores[category][metric]
-            weighted_metric_score = metric_score * metric_data["weight"]
-            category_score += weighted_metric_score
+        if not not_applicable:
+            for metric, metric_data in category_data["metrics"].items():
+                metric_score = scores[category][metric]
+                weighted_metric_score = metric_score * metric_data["weight"]
+                category_score += weighted_metric_score
             
-        category_weighted_score = category_score * category_data["weight"]
-        total_score += category_weighted_score
-        
+            category_weighted_score = category_score * category_data["weight"]
+            total_score += category_weighted_score
+
         weighted_scores[category] = {
             "score": category_score,
             "weighted_score": category_weighted_score,
-            "details": scores[category]
+            "details": scores[category],
+            "not_applicable": not_applicable
         }
     
     weighted_scores["total_score"] = total_score
     return weighted_scores
+
 
 def generate_expert_scoring(agent_name, flight_data, scores):
     """
@@ -249,6 +201,8 @@ def generate_expert_scoring(agent_name, flight_data, scores):
     
     # 提取该专家关注的评分指标
     for category in ["flight_control", "swarm_coordination", "safety_assessment"]:
+        if category == "swarm_coordination" and int(flight_data.get("drone_count", 1)) <= 1:
+            continue  # 单机任务：协同评分不适用
         if category in scores:
             for metric in agent_info["scoring_focus"]:
                 if metric in scores[category]:
@@ -259,9 +213,11 @@ def generate_expert_scoring(agent_name, flight_data, scores):
         expert_score = sum(expert_scoring["focused_metrics"].values()) / len(expert_scoring["focused_metrics"])
         expert_scoring["expert_score"] = round(expert_score, 2)
     else:
-        expert_scoring["expert_score"] = 0
+        expert_scoring["expert_score"] = None
+        expert_scoring["note"] = "单机任务，协同评分不适用"
     
     return expert_scoring
+
 
 def generate_scoring_report(flight_data, scores, weighted_scores, expert_scorings):
     """
@@ -285,15 +241,22 @@ def generate_scoring_report(flight_data, scores, weighted_scores, expert_scoring
     # 分类评分详情
     for category, data in weighted_scores.items():
         if category != "total_score":
+            grade = get_performance_grade(data["score"])
+            note = ""
+            if data.get("not_applicable"):
+                grade = "N/A"
+                note = "单机任务，协同评分不适用"
             report["category_scores"][category] = {
                 "name": SCORING_CRITERIA[category]["name"],
                 "score": round(data["score"], 2),
                 "weighted_score": round(data["weighted_score"], 2),
                 "weight": SCORING_CRITERIA[category]["weight"],
-                "grade": get_performance_grade(data["score"])
+                "grade": grade,
+                "note": note
             }
     
     return report
+
 
 def get_performance_grade(score):
     """
@@ -310,6 +273,7 @@ def get_performance_grade(score):
     else:
         return "不及格"
 
+
 def generate_recommendations(weighted_scores, expert_scorings):
     """
     生成改进建议
@@ -319,6 +283,8 @@ def generate_recommendations(weighted_scores, expert_scorings):
     # 基于分数生成建议
     for category, data in weighted_scores.items():
         if category != "total_score" and data["score"] < 80:
+            if data.get("not_applicable"):
+                continue
             category_name = SCORING_CRITERIA[category]["name"]
             if data["score"] < 60:
                 recommendations.append(f"{category_name}表现不佳，需要重点改进")
@@ -327,10 +293,11 @@ def generate_recommendations(weighted_scores, expert_scorings):
     
     # 基于专家评分生成建议
     for expert_scoring in expert_scorings:
-        if expert_scoring["expert_score"] < 75:
+        if expert_scoring.get("expert_score") is not None and expert_scoring["expert_score"] < 75:
             recommendations.append(f"建议重点关注{expert_scoring['expert']}提出的专业建议")
     
     return recommendations
+
 
 def generate_performance_analysis(weighted_scores):
     """
@@ -382,18 +349,42 @@ def call_glm_api(prompt, api_key, agent_role=""):
     )
     return response.choices[0].message.content
 
+
 def construct_message(agents_responses, question, agent_id):
+    """
+    生成结构化跟进提示，要求输出固定块以提升信息密度：
+    [CLAIM][EVIDENCE][COUNTER][SUMMARY][CONFIDENCE]
+    并指定一个质询目标以促使直接反驳。
+    """
     if not agents_responses:
-        return f"请回答以下问题: {question}\n请提供详细的分析和你的观点。"
-    
-    prefix_string = f"问题是: {question}\n\n其他智能体的回答如下:\n\n"
-    
+        return (
+            f"问题: {question}\n\n"
+            "请使用以下严格结构化格式(ASCII):\n"
+            "[CLAIM] 一句核心判断\n"
+            "[EVIDENCE] 3-5条证据(含具体数值)\n"
+            "[COUNTER] 针对潜在反驳的最小变更回应\n"
+            "[SUMMARY] 3点综合 + 1条行动建议\n"
+            "[CONFIDENCE] 0.00~1.00\n"
+        )
+
+    target_id = (agent_id + 1) % max(1, len(agents_responses))
+    prefix = [
+        f"问题: {question}",
+        "上一轮其他专家的回答要点(截断):",
+    ]
     for i, response in enumerate(agents_responses):
-        if i != agent_id:  # 不包含自己之前的回答
-            prefix_string += f"智能体 {i+1} 的回答:\n{response}\n\n"
-    
-    prefix_string += f"作为智能体 {agent_id+1}，请考虑其他智能体的观点，提供对你的问题的看法。你可以同意、反驳或补充其他智能体的观点。"
-    return prefix_string
+        if i != agent_id:
+            preview = str(response).strip().replace("\n", " ")
+            prefix.append(f"- 专家{i+1}: {preview[:400]}")
+    prefix.append(
+        "\n请严格使用以下结构化格式(ASCII):\n"
+        "[CLAIM] 一句核心判断\n"
+        "[EVIDENCE] 3-5条证据(含具体数值)\n"
+        f"[COUNTER] 针对专家{target_id+1}关键论点的反驳或边界条件\n"
+        "[SUMMARY] 3点综合 + 1条行动建议\n"
+        "[CONFIDENCE] 0.00~1.00\n"
+    )
+    return "\n".join(prefix)
 
 
 def load_trajectory_from_pkl(file_path):
@@ -447,10 +438,6 @@ def load_trajectory_from_pkl(file_path):
             arr = max(prioritized, key=lambda x: x[0].size)[0]
         else:
             arr = max(found, key=lambda x: x[0].size)[0]
-
-    if arr is None:
-        print("⚠️ 未能识别 trajectory.pkl 中的轨迹数组，改用模拟数据")
-        return generate_drone_flight_data()
 
     # 轨迹形状处理：至少需要 X、Y，Z 可选
     if arr.ndim == 1:
@@ -526,14 +513,212 @@ def load_trajectory_from_pkl(file_path):
 
     return flight_data
 
+# 提取轨迹点的通用字段
+def _extract_xy_alt_speed(traj_point):
+    # 支持两种结构：{gps:{lat,lon}} 或 {latitude, longitude}
+    if "gps" in traj_point:
+        x = float(traj_point["gps"].get("lat", 0.0))
+        y = float(traj_point["gps"].get("lon", 0.0))
+    else:
+        x = float(traj_point.get("latitude", traj_point.get("lat", 0.0)))
+        y = float(traj_point.get("longitude", traj_point.get("lon", 0.0)))
+    alt = float(traj_point.get("altitude", 0.0))
+    speed = float(traj_point.get("speed", 0.0))
+    heading = float(traj_point.get("heading", 0.0))
+    t = int(traj_point.get("timestamp", 0))
+    return x, y, alt, speed, heading, t
+
+# 航向转指南针方向
+def _compass_from_heading(h):
+    h = (h % 360.0)
+    best = "N"; best_diff = 1e9
+    for name, deg in COMPASS_DIRS:
+        diff = min(abs(h - deg), 360 - abs(h - deg))
+        if diff < best_diff:
+            best_diff = diff
+            best = name
+    return best
+
+# 简易 Ramer–Douglas–Peucker 算法
+def _rdp(points, epsilon=0.001):
+    # 简易 Ramer–Douglas–Peucker，多数场景够用
+    if len(points) < 3:
+        return points
+    def _perp_dist(pt, a, b):
+        ax, ay = a; bx, by = b; px, py = pt
+        dx, dy = bx - ax, by - ay
+        if dx == 0 and dy == 0:
+            return math.hypot(px - ax, py - ay)
+        t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)
+        t = max(0, min(1, t))
+        cx, cy = ax + t * dx, ay + t * dy
+        return math.hypot(px - cx, py - cy)
+    def _rdp_rec(pts):
+        if len(pts) <= 2:
+            return pts
+        a, b = pts[0], pts[-1]
+        idx, dmax = 0, -1
+        for i in range(1, len(pts) - 1):
+            d = _perp_dist(pts[i], a, b)
+            if d > dmax:
+                idx, dmax = i, d
+        if dmax > epsilon:
+            left = _rdp_rec(pts[:idx+1])
+            right = _rdp_rec(pts[idx:])
+            return left[:-1] + right
+        else:
+            return [a, b]
+    return _rdp_rec(points)
+
+# 为 LLM 生成轨迹摘要
+def summarize_trajectory_for_llm(flight_data, segments=6, max_events=10, rdp_epsilon=0.001, max_waypoints=8):
+    traj = flight_data.get("drones", [{}])[0].get("trajectory", [])
+    if not traj:
+        return {"meta": {}, "stats": {}, "segments": [], "events": [], "waypoints": []}
+    xs, ys, alts, speeds, headings, times = [], [], [], [], [], []
+    for p in traj:
+        x, y, alt, spd, hdg, t = _extract_xy_alt_speed(p)
+        xs.append(x); ys.append(y); alts.append(alt); speeds.append(spd); headings.append(hdg); times.append(t)
+    n = len(traj)
+    duration_s = (times[-1] - times[0]) if times else n
+    # 距离（近似欧氏）
+    dist = 0.0
+    turns = 0
+    accel_events = 0
+    decel_events = 0
+    sharp_turns = []
+    climb_events = []
+    for i in range(1, n):
+        dist += math.hypot(xs[i] - xs[i-1], ys[i] - ys[i-1])
+        dh = abs(headings[i] - headings[i-1])
+        dh = min(dh, 360 - dh)
+        if dh >= 30:
+            turns += 1
+            sharp_turns.append({"t": times[i], "angle_deg": round(dh, 1)})
+        dv = speeds[i] - speeds[i-1]
+        if dv >= 2.0:
+            accel_events += 1
+        elif dv <= -2.0:
+            decel_events += 1
+        # 爬升事件：连续上升速率阈值
+        rate = (alts[i] - alts[i-1]) / max(1, (times[i] - times[i-1]))
+        if rate >= 3.0:
+            climb_events.append({"t": times[i], "rate_mps": round(rate, 2)})
+    speed_mean = float(np.mean(speeds)) if speeds else 0.0
+    speed_std = float(np.std(speeds)) if speeds else 0.0
+    speed_max = float(np.max(speeds)) if speeds else 0.0
+    alt_mean = float(np.mean(alts)) if alts else 0.0
+    alt_std = float(np.std(alts)) if alts else 0.0
+    heading_std = float(np.std(headings)) if headings else 0.0
+    smoothness_index = 1.0 / (1.0 + heading_std / 90.0)
+    # 分段
+    seg_len = max(1, n // segments)
+    segs = []
+    for s in range(segments):
+        i0 = s * seg_len
+        i1 = min(n, (s+1) * seg_len)
+        if i0 >= n:
+            break
+        v_mean = float(np.mean(speeds[i0:i1])) if i1 > i0 else 0.0
+        v_std = float(np.std(speeds[i0:i1])) if i1 > i0 else 0.0
+        a_mean = float(np.mean(alts[i0:i1])) if i1 > i0 else 0.0
+        a_std = float(np.std(alts[i0:i1])) if i1 > i0 else 0.0
+        h_mean = float(np.mean(headings[i0:i1])) if i1 > i0 else 0.0
+        dir_str = _compass_from_heading(h_mean)
+        turns_seg = 0
+        for j in range(i0+1, i1):
+            dh = abs(headings[j] - headings[j-1]); dh = min(dh, 360 - dh)
+            if dh >= 30: turns_seg += 1
+        turn_intensity = "low" if turns_seg <= 1 else ("medium" if turns_seg <= 3 else "high")
+        segs.append({
+            "t0": int(times[i0]), "t1": int(times[i1-1]) if i1 > i0 else int(times[i0]),
+            "dir": dir_str,
+            "v_mean": round(v_mean, 2), "v_std": round(v_std, 2),
+            "alt_mean": round(a_mean, 1), "alt_std": round(a_std, 1),
+            "turn_intensity": turn_intensity
+        })
+    # 事件时间轴（裁剪）
+    events = []
+    for e in sharp_turns[:max_events]:
+        events.append({"t": e["t"], "type": "sharp_turn", "angle_deg": e["angle_deg"]})
+    for e in climb_events[:max_events - len(events)]:
+        events.append({"t": e["t"], "type": "climb", "rate_mps": e["rate_mps"]})
+    # Waypoints via RDP
+    pts = list(zip(xs, ys))
+    wps = _rdp(pts, epsilon=rdp_epsilon)
+    if len(wps) > max_waypoints:
+        step = max(1, len(wps) // max_waypoints)
+        wps = wps[::step][:max_waypoints]
+    summary = {
+        "meta": {"duration_s": int(duration_s), "n_points": n},
+        "stats": {
+            "distance_km": round(dist / 1000.0, 3),
+            "speed_mean_mps": round(speed_mean, 3), "speed_std_mps": round(speed_std, 3), "speed_max_mps": round(speed_max, 3),
+            "alt_mean_m": round(alt_mean, 1), "alt_std_m": round(alt_std, 1),
+            "turn_count_gt30deg": int(turns),
+            "smoothness_index": round(smoothness_index, 3)
+        },
+        "segments": segs,
+        "events": events,
+        "waypoints": [[round(a,6), round(b,6)] for a,b in wps]
+    }
+    return summary
+
+# 将摘要格式化为紧凑 DSL
+def format_llm_dsl(summary, scores=None):
+    meta = summary.get("meta", {})
+    stats = summary.get("stats", {})
+    segs = summary.get("segments", [])
+    events = summary.get("events", [])
+    wps = summary.get("waypoints", [])
+    lines = []
+    lines.append(f"META: dur={meta.get('duration_s',0)}s, pts={meta.get('n_points',0)}")
+    lines.append(
+        "STATS: "
+        f"L={stats.get('distance_km',0)}km, "
+        f"v={stats.get('speed_mean_mps',0)}±{stats.get('speed_std_mps',0)}m/s, "
+        f"vmax={stats.get('speed_max_mps',0)}m/s, "
+        f"alt={stats.get('alt_mean_m',0)}±{stats.get('alt_std_m',0)}m, "
+        f"turns>30°={stats.get('turn_count_gt30deg',0)}, "
+        f"smooth={stats.get('smoothness_index',0)}"
+    )
+    for i, s in enumerate(segs[:8], 1):
+        lines.append(
+            f"SEG[{i}]: t={s.get('t0',0)}-{s.get('t1',0)}, dir={s.get('dir','')}, "
+            f"v={s.get('v_mean',0)}±{s.get('v_std',0)}, alt={s.get('alt_mean',0)}±{s.get('alt_std',0)}, "
+            f"turn={s.get('turn_intensity','low')}"
+        )
+    for e in events[:10]:
+        if e.get('type') == 'sharp_turn':
+            lines.append(f"EVENT: t={e['t']}, sharp_turn={e['angle_deg']}deg")
+        elif e.get('type') == 'climb':
+            lines.append(f"EVENT: t={e['t']}, climb={e['rate_mps']}m/s")
+    if wps:
+        wp_str = "→".join([f"({a},{b})" for a,b in wps])
+        lines.append(f"WAYPTS: {wp_str}")
+    if scores:
+        try:
+            fc = scores.get('flight_control', {})
+            lines.append(
+                "SCORES: "
+                f"smooth={fc.get('trajectory_smoothness',0)}, "
+                f"alt_stab={fc.get('altitude_stability',0)}, "
+                f"speed_cons={fc.get('speed_consistency',0)}, "
+                f"energy_eff={fc.get('energy_efficiency',0)}"
+            )
+        except Exception:
+            pass
+    return "\n".join(lines)
+
+
 def main():
+    from debate_protocol import structured_prompt_first_round, construct_structured_followup, parse_structured_response, update_agent_weights, summary_similarity
     api_key = 'd2811fc4f03f48f2bb547d6a6b3378f4.GtaNMZOyqulNGa1L'
     print("🚁 正在加载轨迹文件: c:\\Users\\bafs\\Desktop\\llm_multiagent_debate-main\\trajectory.pkl")
     flight_data = load_trajectory_from_pkl(r"c:\\Users\\bafs\\Desktop\\llm_multiagent_debate-main\\trajectory.pkl")
     print("✅ 已从 trajectory.pkl 加载轨迹数据，并转换为评估结构")
 
-    
-    
+
     # 保存飞行数据
     with open("drone_flight_data.json", "w", encoding="utf-8") as f:
         json.dump(flight_data, f, ensure_ascii=False, indent=2)
@@ -575,6 +760,9 @@ def main():
     
     # 初始化智能体回答
     agents_responses = [[] for _ in range(agents)]
+    agents_structured = [[] for _ in range(agents)]
+    agent_weights = [1.0 / agents] * agents
+    weights_history = []
     
     print(f"\n🤖 智谱GLM-4.6 无人机集群评估系统")
     print(f"辩论问题: {DEBATE_QUESTION}\n")
@@ -585,8 +773,8 @@ def main():
     print(f"  - 任务类型: {flight_data['mission_type']}")
     print(f"  - 无人机数量: {flight_data['drone_count']} 架")
     print(f"  - 飞行时长: {flight_data['flight_duration']}")
-    print(f"  - 集群稳定性: {flight_data['swarm_metrics']['formation_stability']}%")
-    print(f"  - 任务完成率: {flight_data['swarm_metrics']['task_completion_rate']}%")
+    print(f"  - 集群稳定性: {'N/A(单机)' if flight_data['drone_count'] <= 1 else str(flight_data['swarm_metrics']['formation_stability']) + '%'}")
+    print(f"  - 任务完成率: {'N/A(单机)' if flight_data['drone_count'] <= 1 else str(flight_data['swarm_metrics']['task_completion_rate']) + '%'}")
     
     print("\n参与评估的专家:")
     for i, role in enumerate(agent_roles):
@@ -594,16 +782,21 @@ def main():
     print("\n" + "="*60)
     
     # 生成飞行数据摘要
+    swarm_stab_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['formation_stability']}%"
+    comm_rate_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['communication_success_rate']}%"
+    task_comp_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['task_completion_rate']}%"
+    avoid_events_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['collision_avoidance_events']} 次"
+    coord_delay_str = "N/A(单机)" if flight_data['drone_count'] <= 1 else f"{flight_data['swarm_metrics']['coordination_delay_avg']} ms"
     flight_summary = f"""
-基于以下无人机集群飞行数据进行分析：
-- 任务类型：{flight_data['mission_type']}
-- 无人机数量：{flight_data['drone_count']} 架
-- 飞行时长：{flight_data['flight_duration']}
-- 集群稳定性：{flight_data['swarm_metrics']['formation_stability']}%
-- 通信成功率：{flight_data['swarm_metrics']['communication_success_rate']}%
-- 任务完成率：{flight_data['swarm_metrics']['task_completion_rate']}%
-- 避碰事件：{flight_data['swarm_metrics']['collision_avoidance_events']} 次
-- 平均协调延迟：{flight_data['swarm_metrics']['coordination_delay_avg']} ms"""
+ 基于以下无人机集群飞行数据进行分析：
+ - 任务类型：{flight_data['mission_type']}
+ - 无人机数量：{flight_data['drone_count']} 架
+ - 飞行时长：{flight_data['flight_duration']}
+ - 集群稳定性：{swarm_stab_str}
+ - 通信成功率：{comm_rate_str}
+ - 任务完成率：{task_comp_str}
+ - 避碰事件：{avoid_events_str}
+ - 平均协调延迟：{coord_delay_str}"""
     
     # 更新智能体循环以使用新的AGENTS字典
     agent_names = list(AGENTS.keys())
@@ -612,6 +805,17 @@ def main():
     print("正在计算飞行数据评分...")
     scores = calculate_flight_scores(flight_data)
     weighted_scores = calculate_weighted_scores(scores)
+    
+    # 为LLM生成紧凑轨迹证据DSL
+    traj_summary = summarize_trajectory_for_llm(flight_data)
+    evidence_text = format_llm_dsl(traj_summary, scores=scores)
+    print("🧪 已生成轨迹摘要DSL(已注入到提示): META/SEG/EVENT/WAYPTS/SCORES")
+    # 打印抽象结果：JSON与DSL
+    print("\n====== 轨迹摘要(JSON) ======")
+    print(json.dumps(traj_summary, ensure_ascii=False, indent=2))
+    print("\n====== 轨迹摘要(DSL) ======")
+    print(evidence_text)
+    print("="*60)
     
     # 生成专家评分
     expert_scorings = []
@@ -635,39 +839,59 @@ def main():
             # 构建提示，包含飞行数据和评分
             if round_idx == 0:
                 # 第一轮：基于飞行数据和自动评分进行分析
-                prompt = f"""
-{agent_info['evaluation_prompt']}
-
-{flight_summary}
-
-自动评分结果：
-- 总分：{weighted_scores['total_score']:.2f}
-- 飞行控制：{weighted_scores['flight_control']['score']:.2f}
-- 集群协同：{weighted_scores['swarm_coordination']['score']:.2f}  
-- 安全评估：{weighted_scores['safety_assessment']['score']:.2f}
-
-您的专业评分：{expert_scorings[agent_idx]['expert_score']:.2f}
-关注指标：{expert_scorings[agent_idx]['focused_metrics']}
-
-请回答以下问题: {DEBATE_QUESTION}
-请从您的专业角度分析这次无人机集群飞行的表现，并提供详细的评价和改进建议。"""
+                prompt = structured_prompt_first_round(
+                    agent_info,
+                    flight_summary,
+                    weighted_scores,
+                    expert_scorings[agent_idx],
+                    DEBATE_QUESTION,
+                    evidence_text=evidence_text,
+                )
             else:
                 # 后续轮次，考虑其他专家的分析
                 last_round_responses = [agents_responses[i][round_idx-1] for i in range(agents)]
-                prompt = construct_message(last_round_responses, DEBATE_QUESTION, agent_idx)
-                prompt += f"\n\n请结合飞行数据（总分{weighted_scores['total_score']:.2f}，您的专业评分：{expert_scorings[agent_idx]['expert_score']:.2f}）进行分析。"
+                prompt = construct_structured_followup(
+                    last_round_responses,
+                    DEBATE_QUESTION,
+                    agent_idx,
+                    weighted_scores,
+                    expert_scorings[agent_idx],
+                    evidence_text=evidence_text,
+                )
             
             # 调用API获取回答
             print("正在调用智谱GLM-4.6 API...")
             response = call_glm_api(prompt, api_key, agent_info['role'])
 
             agents_responses[agent_idx].append(response)
+            # 解析结构化输出并保存
+            try:
+                structured = parse_structured_response(response)
+            except Exception:
+                structured = {"summary": "", "confidence": 0.5, "raw": response}
+            agents_structured[agent_idx].append(structured)
             
             print(f"\n📢 {agent_name} 的评估:")
             print(f"{response}")
             print("-" * 40)
             time.sleep(2)  # 避免API调用过于频繁
     
+        # 每轮结束后：更新权重与早停判据（位于轮次循环内）
+        try:
+            current_structs = [agents_structured[i][round_idx] for i in range(agents)]
+        except Exception:
+            current_structs = []
+        if current_structs:
+            agent_weights = update_agent_weights(agent_weights, current_structs, alpha=1.0, beta=1.0)
+            weights_history.append(agent_weights)
+        if round_idx > 0 and current_structs:
+            prev_text = " ".join([agents_structured[i][round_idx-1].get('summary','') for i in range(agents)])
+            curr_text = " ".join([s.get('summary','') for s in current_structs])
+            sim = summary_similarity(prev_text, curr_text)
+            if sim > 0.92:
+                print(f"⏹️ 早停: 第{round_idx+1}轮与上一轮相似度 {sim:.2f} 超过阈值 0.92")
+                break
+
     # 生成综合评分报告
     if "mission_info" not in flight_data:
         flight_data["mission_info"] = {"duration_minutes": 45}
@@ -679,6 +903,8 @@ def main():
         "flight_data": flight_data,
         "expert_roles": agent_names,
         "expert_evaluations": agents_responses,
+        "structured_evaluations": agents_structured,
+        "debate_weights_history": weights_history,
         "scoring_report": scoring_report,
         "model": "glm-4.6",
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
