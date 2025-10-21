@@ -1,67 +1,57 @@
-# Improving Factuality and Reasoning in Language Models through Multiagent Debate
+# Drone Swarm Evaluation via Multi‑Agent Debate
 
-### [Project Page](https://composable-models.github.io/llm_debate/) | [Paper](https://arxiv.org/abs/2305.14325) 
+This repository implements a multi‑agent debate system to evaluate drone (UAV) swarm performance. It combines a scoring engine (flight control, swarm coordination, safety) with expert agents that debate and synthesize a final report. The system supports real API calls or a fully offline mock mode.
 
-[Yilun Du](https://yilundu.github.io/),
-[Shuang Li](https://shuangli59.github.io/),
-[Antonio Torralba](https://groups.csail.mit.edu/vision/torralbalab),
-[Joshua B. Tenenbaum](https://scholar.google.com/citations?user=rRJ9wTJMUB8C&hl=en),
-[Igor Mordatch](https://scholar.google.com/citations?user=Vzr1RukAAAAJ&hl=en)
+## Features
+- Multi‑agent debate (3 expert roles: control, coordination, safety)
+- Scoring engine with weighted categories and total score
+- Robust trajectory parser for `trajectory.pkl` (nested dict/list/ndarray)
+- Real model API mode and mock debate mode
+- Structured outputs: flight data and evaluation report (JSON)
+- Architecture diagram and LaTeX pseudocode for papers
 
-This is a preliminary implementation of the paper "Improving Factuality and Reasoning in Language Models through Multiagent Debate". More tasks and settings will be released soon. 
-You may see some additional debate logs [here](https://www.dropbox.com/sh/6kq5ixfnf4zqk09/AABezsYsBhgg1IQAZ12yQ43_a?dl=0).
+## Project Layout
+- `direct_debate.py` — Full evaluation pipeline (data → scoring → debate → report)
+- `real_api_debate.py` — Minimal multi‑agent debate using real API
+- `mock_debate.py` — Offline debate with handcrafted responses
+- `trajectory.pkl` — Input trajectory data (see Data Input)
+- `project_architecture_diagram.svg` — System overview diagram
+- `algorithm_topconf.tex`, `algorithm_overleaf_minimal.tex`, `algorithm_topconf_math.tex` — LaTeX pseudocode (Overleaf‑ready)
+- Outputs: `drone_flight_data.json`, `drone_swarm_evaluation_result.json`
 
-Also, check out gauss5930's awesome implementation of multiagent debate on opensource LLMs [here](https://github.com/gauss5930/LLM-Agora)!
+## Requirements
+- Python 3.9+
+- Install deps: `pip install -r requirements.txt`
 
-## Running experiments
+## Configuration
+- API key: set `ZHIPU_API_KEY` (PowerShell: `$env:ZHIPU_API_KEY="YOUR_KEY"`)
+- Optional proxies: set `http_proxy` / `https_proxy` if needed
+- Optional base URL: `ZHIPU_BASE_URL` (use official domestic endpoint if applicable)
 
-The code for running arithmetic, GSM, biographies, and MMLU tasks may be found in the following subfolders
+## Quick Start
+1) Connectivity (optional): `python connect_test.py`
+2) Real API debate:
+   - Set `ZHIPU_API_KEY`
+   - Run `python direct_debate.py` (full pipeline) or `python real_api_debate.py` (minimal)
+3) Mock debate (offline): `python mock_debate.py`
 
-* ./math/ contains code for running math
-* ./gsm/ contains code for running gsm
-* ./biography/ contains code for running biographies
-* ./mmlu/ contains code for running mmlu results.
+## Data Input
+- `trajectory.pkl` may contain nested structures. The parser in `direct_debate.py` searches for numeric arrays along paths like `trajectory/positions/observations/coords/path` and falls back to synthetic data if none are found.
 
-**Math:**
+## Outputs
+- `drone_flight_data.json` — normalized flight data summary
+- `drone_swarm_evaluation_result.json` — debate transcripts, expert roles, category scores, total score, recommendations and analysis
 
-To generate and evaluated answer for Math problems through multiagent debate, cd into the math directory and run:
-	`python gen_math.py`
-	
-**Grade School Math:**
+## Architecture & Pseudocode
+- Diagram: `project_architecture_diagram.svg`
+- Pseudocode (Overleaf‑ready):
+  - `algorithm_topconf.tex` (top‑conf algorithmicx style)
+  - `algorithm_overleaf_minimal.tex` (minimal algorithm2e)
+  - `algorithm_topconf_math.tex` (math‑first, minimal text)
 
-To generate answers for Grade School Math problems through multiagent debate, cd into the gsm directory and run:
-	`python gen_gsm.py`
+## Troubleshooting
+- API errors: verify `ZHIPU_API_KEY`, base URL, network/proxy; update SDK; run `connect_test.py`.
+- Trajectory parsing: ensure `trajectory.pkl` contains numeric arrays; the parser prints a notice and uses synthetic data if no valid array is found.
 
-To evaluate the generated results of Grade School Math problems:
-	`python eval_gsm.py`
-	
-You can download the GSM dataset [here](https://github.com/openai/grade-school-math)
-
-
-**Biography:**
-
-To generate answers for Biography problems through multiagent debate, cd into the biography directory and run:
-	`python gen_conversation.py`
-
-To evaluate the generated results for Biography problems:
-	`python eval_conversation.py`
-	
-**MMLU:**
-
-To generate answers for MMLU through multiagent debate, cd into the MMLU directory and run:
-	`python gen_mmlu.py`
-
-To evaluate the generated results of MMLU:
-	`python eval_mmlu.py`
-	
-You can download the MMLU dataset [here](https://github.com/hendrycks/test)
-
-If you would like to cite the paper, here is a bibtex file:
-```
-@article{du2023improving,
-  title={Improving Factuality and Reasoning in Language Models through Multiagent Debate},
-  author={Du, Yilun and Li, Shuang and Torralba, Antonio and Tenenbaum, Joshua B and Mordatch, Igor},
-  journal={arXiv preprint arXiv:2305.14325},
-  year={2023}
-}
-```
+## Acknowledgements
+Based on the idea of multi‑agent debate for improving reasoning. This implementation adapts it to UAV swarm evaluation.
