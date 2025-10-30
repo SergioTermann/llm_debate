@@ -41,7 +41,7 @@ Question: {question}
         "\nPlease answer using the following STRICT structured format (ASCII only):\n"
         "[CLAIM] One-sentence core judgement about this mission.\n"
         "[EVIDENCE] 3-5 bullet points; EACH must explain WHY the result occurs,\n"
-        "           and cite concrete evidence from DSL or data: SEG[i], EVENT t=...,\n"
+        "           and cite concrete evidence from DSL or data: SEG[i], EVENT t=..., ATTN t=...,\n"
         "           WAYPTS (x,y), SCORES fields, or swarm_metrics values. Include numbers.\n"
         "[COUNTER] Anticipate a counterargument and provide a minimal-change rebuttal.\n"
         "[SUMMARY] 3 key takeaways + one actionable recommendation.\n"
@@ -75,7 +75,7 @@ def construct_structured_followup(last_round_responses, question, agent_id, weig
     format_text = (
         "\nPlease REPLY using STRICT structured format (ASCII only):\n"
         "[CLAIM] One-sentence core judgement.\n"
-        "[EVIDENCE] 3-5 items; for EACH, explain WHY and cite DSL/data (SEG/EVENT/WAYPTS/SCORES).\n"
+        "[EVIDENCE] 3-5 items; for EACH, explain WHY and cite DSL/data (SEG/EVENT/ATTN/WAYPTS/SCORES).\n"
         f"[COUNTER] Directly challenge Expert {target_id+1}'s key point with boundary conditions.\n"
         "[SUMMARY] 3 conclusions + one action.\n"
         "[CONFIDENCE] 0.00~1.00.\n"

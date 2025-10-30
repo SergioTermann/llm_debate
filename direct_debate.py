@@ -7,6 +7,7 @@ import os
 import pickle
 import numpy as np
 import os
+from attention_utils import compute_traj_attention, build_attn_dsl_block
 
 os.environ["http_proxy"] = "http://localhost:7890"
 os.environ["https_proxy"] = "http://localhost:7890"
@@ -819,7 +820,12 @@ def main():
     # 为LLM生成紧凑轨迹证据DSL
     traj_summary = summarize_trajectory_for_llm(flight_data)
     evidence_text = format_llm_dsl(traj_summary, scores=scores)
-    print("🧪 已生成轨迹摘要DSL(已注入到提示): META/SEG/EVENT/WAYPTS/SCORES")
+    try:
+        attn = compute_traj_attention(flight_data.get("drones", [{}])[0].get("trajectory", []))
+        evidence_text = evidence_text + "\n" + build_attn_dsl_block(flight_data.get("drones", [{}])[0].get("trajectory", []), attn)
+        print("🧪 已生成轨迹摘要DSL(已注入到提示): META/SEG/EVENT/WAYPTS/SCORES/ATTN")
+    except Exception:
+        print("⚠️ 注意力摘要构建失败，继续使用原始DSL")
     # 打印抽象结果：JSON与DSL
     print("\n====== 轨迹摘要(JSON) ======")
     print(json.dumps(traj_summary, ensure_ascii=False, indent=2))
@@ -1002,7 +1008,12 @@ def main():
     # 为LLM生成紧凑轨迹证据DSL
     traj_summary = summarize_trajectory_for_llm(flight_data)
     evidence_text = format_llm_dsl(traj_summary, scores=scores)
-    print("🧪 已生成轨迹摘要DSL(已注入到提示): META/SEG/EVENT/WAYPTS/SCORES")
+    try:
+        attn = compute_traj_attention(flight_data.get("drones", [{}])[0].get("trajectory", []))
+        evidence_text = evidence_text + "\n" + build_attn_dsl_block(flight_data.get("drones", [{}])[0].get("trajectory", []), attn)
+        print("🧪 已生成轨迹摘要DSL(已注入到提示): META/SEG/EVENT/WAYPTS/SCORES/ATTN")
+    except Exception:
+        print("⚠️ 注意力摘要构建失败，继续使用原始DSL")
     # 打印抽象结果：JSON与DSL
     print("\n====== 轨迹摘要(JSON) ======")
     print(json.dumps(traj_summary, ensure_ascii=False, indent=2))
