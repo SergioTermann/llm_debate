@@ -1065,8 +1065,8 @@ def format_llm_dsl(summary, scores=None):
 def main():
     from debate_protocol import structured_prompt_first_round, construct_structured_followup, parse_structured_response, update_agent_weights, summary_similarity
     api_key = 'd2811fc4f03f48f2bb547d6a6b3378f4.GtaNMZOyqulNGa1L'
-    print("🚁 正在加载轨迹文件: c:\\Users\\bafs\\Desktop\\llm_multiagent_debate-main\\trajectory.pkl")
-    flight_data = load_trajectory_from_pkl(r"c:\\Users\\bafs\\Desktop\\llm_multiagent_debate-main\\trajectory.pkl")
+    print("🚁 正在加载轨迹文件: c:\\Users\\bafs\\Desktop\\llm_debate\\trajectory.pkl")
+    flight_data = load_trajectory_from_pkl(r"c:\\Users\\bafs\\Desktop\\llm_debate\\trajectory.pkl")
     print("✅ 已从 trajectory.pkl 加载轨迹数据，并转换为评估结构")
 
 
